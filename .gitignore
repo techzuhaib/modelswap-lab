@@ -155,3 +155,12 @@ vite.config.ts.timestamp-*
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runs
+
+# ModelSwap local data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+/public/uploads/
+/playwright-report/
+/test-results/

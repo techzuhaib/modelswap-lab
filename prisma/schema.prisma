@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Model {
+  id           String           @id @default(cuid())
+  name         String
+  version      String
+  capabilities String           @default("text-to-image")
+  active       Boolean          @default(true)
+  providers    ProviderConfig[]
+  outputs      Output[]
+  createdAt    DateTime         @default(now())
+}
+
+model ProviderConfig {
+  id               String   @id @default(cuid())
+  modelId          String
+  model            Model    @relation(fields: [modelId], references: [id])
+  name             String
+  kind             String   @default("manual")
+  providerModelId  String?
+  parameters       String   @default("{}")
+  resolutions      String   @default("[]")
+  referenceSupport Boolean  @default(false)
+  pricePerImage    Float?
+  active           Boolean  @default(true)
+  outputs          Output[]
+  jobs             Job[]
+  createdAt        DateTime @default(now())
+}
+
+model Suite {
+  id          String       @id @default(cuid())
+  name        String
+  description String       @default("")
+  demo        Boolean      @default(false)
+  cases       TestCase[]
+  comparisons Comparison[]
+  createdAt   DateTime     @default(now())
+}
+
+model TestCase {
+  id                   String   @id @default(cuid())
+  suiteId              String
+  suite                Suite    @relation(fields: [suiteId], references: [id])
+  prompt               String
+  negativePrompt       String?
+  referencePath        String?
+  criteria             String   @default("[]")
+  parameters           String   @default("{}")
+  expectedCapabilities String   @default("[]")
+  outputs              Output[]
+  createdAt            DateTime @default(now())
+}
+
+model Comparison {
+  id           String   @id @default(cuid())
+  name         String
+  suiteId      String
+  suite        Suite    @relation(fields: [suiteId], references: [id])
+  baselineId   String
+  challengerId String
+  minPairs     Int      @default(5)
+  minWinRate   Float    @default(0.55)
+  maxCostRatio Float    @default(1.2)
+  outputs      Output[]
+  ratings      Rating[]
+  createdAt    DateTime @default(now())
+}
+
+model Output {
+  id            String         @id @default(cuid())
+  comparisonId  String
+  comparison    Comparison     @relation(fields: [comparisonId], references: [id])
+  caseId        String
+  testCase      TestCase       @relation(fields: [caseId], references: [id])
+  modelId       String
+  model         Model          @relation(fields: [modelId], references: [id])
+  providerId    String
+  provider      ProviderConfig @relation(fields: [providerId], references: [id])
+  imagePath     String
+  referencePath String?
+  prompt        String
+  seed          String?
+  resolution    String?
+  parameters    String         @default("{}")
+  durationMs    Int?
+  queueMs       Int?
+  cost          Float?
+  actualCost    Boolean        @default(false)
+  metadata      String         @default("{}")
+  createdAt     DateTime       @default(now())
+  ratingsLeft   Rating[]       @relation("left")
+  ratingsRight  Rating[]       @relation("right")
+}
+
+model Rating {
+  id             String     @id @default(cuid())
+  comparisonId   String
+  comparison     Comparison @relation(fields: [comparisonId], references: [id])
+  leftId         String
+  left           Output     @relation("left", fields: [leftId], references: [id])
+  rightId        String
+  right          Output     @relation("right", fields: [rightId], references: [id])
+  winner         String
+  leftIdentity   Int?
+  rightIdentity  Int?
+  leftQuality    Int?
+  rightQuality   Int?
+  leftAdherence  Int?
+  rightAdherence Int?
+  notes          String     @default("")
+  method         String     @default("blind-human")
+  provenance     String     @default("local-reviewer")
+  createdAt      DateTime   @default(now())
+
+  @@unique([leftId, rightId])
+}
+
+model Job {
+  id             String         @id @default(cuid())
+  providerId     String
+  provider       ProviderConfig @relation(fields: [providerId], references: [id])
+  state          String         @default("queued")
+  idempotencyKey String         @unique
+  externalId     String?
+  attempts       Int            @default(0)
+  maxAttempts    Int            @default(3)
+  timeoutMs      Int            @default(120000)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  error          String?
+  request        String
+  result         String?
+  createdAt      DateTime       @default(now())
+}
